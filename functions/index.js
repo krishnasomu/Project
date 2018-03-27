@@ -228,22 +228,17 @@ function processV2Request (request, response) {
     // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
     'get-age': () => {
       // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
-      if (parameters['family-member'] === 'sumanasa') {
-          sendResponse('Sumi is 18 years old'); // Send simple response to user
-      } else
-      if (parameters['family-member'] === 'sindhusha') {
-          sendResponse('Sindhu is 21 years old'); // Send simple response to user
-      } else
-      if (parameters['family-member'] === 'usha rani') {
-          sendResponse('Usha is 39 years old'); // Send simple response to user
-      } else
-      if (parameters['family-member'] === 'charan tej') {
-          sendResponse('Chinnu is 11 years old'); // Send simple response to user
-      } else
-      if (parameters['family-member'] === 'satya krishna vara prasad') {
-          sendResponse('KP is 43 years old'); // Send simple response to user
-      } else
-          sendResponse('Wrong family member'); // Send simple response to user
+      var ref = firebase.ref('mydb/family/' + parameters['family-member']);
+	  ref.orderByKey().on("value", function(snapshot) {
+		if(snapshot===null){
+		    sendResponse('Wrong family member'); // Send simple response to user
+		}else{
+			console.log("snapshot is: ");
+			console.log(snapshot.val());
+			console.log("age is: " + snapshot.val().age);
+			sendResponse(parameters['family-member'] + ' is ' + snapshot.val().age + ' years old.'); // Send simple response to user
+		}
+	  });
     },
     // Default handler for unknown or undefined actions
     'default': () => {
