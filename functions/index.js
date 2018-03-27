@@ -1,5 +1,4 @@
 'use strict';
-
 const functions = require('firebase-functions'); // Cloud Functions for Firebase library
 const firebaseAdmin = require('firebase-admin');
 const DialogflowApp = require('actions-on-google').DialogflowApp; // Google Assistant helper library
