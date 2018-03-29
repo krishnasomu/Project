@@ -244,8 +244,22 @@ function processV2Request (request, response) {
         }else{
           console.log("snapshot is: ");
           console.log(snapshot.val());
-          console.log("age is: " + snapshot.val());
+          console.log("snapshot value is: " + snapshot.val());
           sendResponse(parameters['family-member2'] + ' is ' + snapshot.val() + ' to ' + parameters['family-member1']); // Send simple response to user
+        }
+      });
+    },
+    // to get the family member position
+    'get-member-position': () => {
+      var ref = firebase.ref('mydb/family/' + parameters['family-member'] + '/who');
+      ref.orderByKey().on("value", function(snapshot) {
+        if(snapshot===null){
+          sendResponse('Wrong family member'); // Send simple response to user
+        }else{
+          console.log("snapshot is: ");
+          console.log(snapshot.val());
+          console.log("snapshot value is: " + snapshot.val());
+          sendResponse(parameters['family-member'] + ' is ' + snapshot.val()); // Send simple response to user
         }
       });
     },
