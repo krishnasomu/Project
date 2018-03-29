@@ -205,11 +205,6 @@ function processV2Request (request, response) {
       //sendResponse('Hello, Welcome to my Dialogflow agent!'); // Send simple response to user
     },
     // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
-    'input.unknown': () => {
-      // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
-      sendResponse('Can you please introduce yourself, first ?'); // Send simple response to user
-    },
-    // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
     'input.get-name': () => {
         console.log("creating database object");
         /*
@@ -239,6 +234,20 @@ function processV2Request (request, response) {
 			sendResponse(parameters['family-member'] + ' is ' + snapshot.val().age + ' years old !!'); // Send simple response to user
 		}
 	  });
+    },
+    // to get the relationships
+    'get-relationship': () => {
+      var ref = firebase.ref('mydb/family/' + parameters['family-member1'] + '/relationship/' + parameters['family-member2']);
+      ref.orderByKey().on("value", function(snapshot) {
+        if(snapshot===null){
+          sendResponse('Wrong family member'); // Send simple response to user
+        }else{
+          console.log("snapshot is: ");
+          console.log(snapshot.val());
+          console.log("age is: " + snapshot.val());
+          sendResponse(parameters['family-member2'] + ' is ' + snapshot.val() + ' to ' + parameters['family-member1']); // Send simple response to user
+        }
+      });
     },
     // Default handler for unknown or undefined actions
     'default': () => {
