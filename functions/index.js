@@ -236,7 +236,7 @@ function processV2Request (request, response) {
 			console.log("snapshot is: ");
 			console.log(snapshot.val());
 			console.log("age is: " + snapshot.val().age);
-			sendResponse(parameters['family-member'] + ' is ' + snapshot.val().age + ' years old.'); // Send simple response to user
+			sendResponse(parameters['family-member'] + ' is ' + snapshot.val().age + ' years old !!'); // Send simple response to user
 		}
 	  });
     },
