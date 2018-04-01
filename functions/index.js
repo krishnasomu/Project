@@ -249,7 +249,7 @@ function processV2Request (request, response) {
         }
       });
     },
-    // to get the family member position
+    // to get the family member position.
     'get-member-position': () => {
       var ref = firebase.ref('mydb/family/' + parameters['family-member'] + '/who');
       ref.orderByKey().on("value", function(snapshot) {
