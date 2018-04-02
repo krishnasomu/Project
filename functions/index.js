@@ -224,16 +224,46 @@ function processV2Request (request, response) {
     'get-age': () => {
       // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
       var ref = firebase.ref('mydb/family/' + parameters['family-member']);
-	  ref.orderByKey().on("value", function(snapshot) {
-		if(snapshot===null){
-		    sendResponse('Wrong family member'); // Send simple response to user
-		}else{
-			console.log("snapshot is: ");
-			console.log(snapshot.val());
-			console.log("age is: " + snapshot.val().age);
-			sendResponse(parameters['family-member'] + ' is ' + snapshot.val().age + ' years old !!'); // Send simple response to user
-		}
-	  });
+      ref.orderByKey().on("value", function(snapshot) {
+        if(snapshot===null){
+            sendResponse('Wrong family member'); // Send simple response to user
+        }else{
+          console.log("snapshot is: ");
+          console.log(snapshot.val());
+          console.log("age is: " + snapshot.val().age);
+          sendResponse(parameters['family-member'] + ' is ' + snapshot.val().age + ' years old !!'); // Send simple response to user
+        }
+  	  });
+    },
+    // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
+    'get-details': () => {
+      // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
+      console.log("my-action: " + parameters['my-action']);
+      if(parameters['my-action']==='get-ages'){
+        var ref = firebase.ref('mydb/family/' + parameters['family-member']);
+        ref.orderByKey().on("value", function(snapshot) {
+          if(snapshot===null){
+              sendResponse('Wrong family member'); // Send simple response to user
+          }else{
+            console.log("snapshot is: ");
+            console.log(snapshot.val());
+            console.log("age is: " + snapshot.val().age);
+            sendResponse(parameters['family-member'] + ' is ' + snapshot.val().age + ' years old !!'); // Send simple response to user
+          }
+        });
+      }else if(parameters['my-action']==='get-positions'){
+        ref = firebase.ref('mydb/family/' + parameters['family-member'] + '/who');
+        ref.orderByKey().on("value", function(snapshot) {
+          if(snapshot===null){
+            sendResponse('Wrong family member'); // Send simple response to user
+          }else{
+            console.log("snapshot is: ");
+            console.log(snapshot.val());
+            console.log("snapshot value is: " + snapshot.val());
+            sendResponse(parameters['family-member'] + ' is ' + snapshot.val()); // Send simple response to user
+          }
+        });
+      }
     },
     // to get the relationships
     'get-relationship': () => {
@@ -250,7 +280,7 @@ function processV2Request (request, response) {
       });
     },
     // to get the family member position.
-    'get-member-position': () => {
+    'get-position': () => {
       var ref = firebase.ref('mydb/family/' + parameters['family-member'] + '/who');
       ref.orderByKey().on("value", function(snapshot) {
         if(snapshot===null){
