@@ -198,14 +198,8 @@ function processV2Request (request, response) {
   let session = (request.body.session) ? request.body.session : undefined;
   // Create handlers for Dialogflow actions as well as a 'default' handler
   const actionHandlers = {
-    // The default welcome intent has been matched, welcome the user (https://dialogflow.com/docs/events#default_welcome_intent)
-    'input.welcome': () => {
-      
-      sendResponse('Hi, welcome to Somu family.  May i know your name, please ?');
-      //sendResponse('Hello, Welcome to my Dialogflow agent!'); // Send simple response to user
-    },
     // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
-    'input.get-name': () => {
+    'welcome': () => {
         console.log("creating database object");
         /*
         var database = firebase.database('booming-cosine-188305-1e6db');
@@ -221,25 +215,49 @@ function processV2Request (request, response) {
       sendResponse('Hello ' + parameters['introducer'] + ', what do you want to know about Somu\'s family ? ?? '); // Send simple response to user
     },
     // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
-    'get-age': () => {
-      // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
-      var ref = firebase.ref('mydb/family/' + parameters['family-member']);
-      ref.orderByKey().on("value", function(snapshot) {
-        if(snapshot===null){
-            sendResponse('Wrong family member'); // Send simple response to user
-        }else{
-          console.log("snapshot is: ");
-          console.log(snapshot.val());
-          console.log("age is: " + snapshot.val().age);
-          sendResponse(parameters['family-member'] + ' is ' + snapshot.val().age + ' years old !!'); // Send simple response to user
-        }
-  	  });
-    },
-    // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
     'get-details': () => {
       // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
       console.log("my-action: " + parameters['my-action']);
-      var ref = firebase.ref('mydb/family/' + parameters['family-member'] + '/' + parameters['my-action']);
+      var member_name = parameters['family-member'];
+      var member_info = parameters['member-info'];
+      var contextStr = '"outputContexts" : [{"name":"my-context", "lifespan":5, "parameters":{';
+      var contextObj = null;
+
+      if(member_name===null){
+        member_name = parameters['member-name'];
+      }else{
+        // set #my-context.family-member = member_name
+        contextStr = contextStr + '"family-member" : "' + member_name + '"';
+        if(member_info===null){
+          contextStr = contextStr + '}}]';
+          contextObj = JSON.parse(contextStr);
+          sendResponse(contextObj);
+          //return;
+        }
+      }
+      if(member_info===null){
+        member_info = parameters['my-action'];
+      }else{
+        //set #my-context.member-info = member_info
+        if(member_name!==null){
+          contextStr = contextStr + ',';
+        }
+        contextStr = contextStr + '"member-info" : "' + member_info + '"}}]';
+        console.log(contextStr);
+        contextObj = JSON.parse(contextStr);
+        sendResponse(contextObj);
+        //return;
+      }
+
+      if(member_name===null && member_info===null){
+        sendResponse('Sorry, i did not get you question.  Can you reframe your question again ?'); // Send simple response to user
+      }else if(member_name===null){
+        sendResponse('Whose ' + member_info + ' you would like to know ?'); // Send simple response to user
+      }else if(member_info===null){
+        sendResponse('What would you like to know about ' + member_name + '?'); // Send simple response to user
+      }
+
+      var ref = firebase.ref('mydb/family/' + member_name + '/' + member_info);
       ref.orderByKey().on("value", function(snapshot) {
         if(snapshot===null){
             sendResponse('Wrong family member'); // Send simple response to user
@@ -248,10 +266,16 @@ function processV2Request (request, response) {
           console.log(snapshot.val());
           console.log("age is: " + snapshot.val());
         }
-        if(parameters['my-action']==='age'){
-          sendResponse(parameters['family-member'] + ' is ' + snapshot.val() + ' years old !!'); // Send simple response to user
-        }else if(parameters['my-action']==='position'){
-          sendResponse(parameters['family-member'] + ' is ' + snapshot.val()); // Send simple response to user
+        if(member_info==='age'){
+          sendResponse(member_name + ' is ' + snapshot.val() + ' years old !!'); // Send simple response to user
+        }else if(member_info==='position'){
+          sendResponse(member_name + ' is ' + snapshot.val()); // Send simple response to user
+        }else if(member_info==='job'){
+          sendResponse(member_name + ' is ' + snapshot.val()); // Send simple response to user
+        }else if(member_info==='location'){
+          sendResponse(member_name + ' is living in ' + snapshot.val()); // Send simple response to user
+        }else if(member_info==='education'){
+          sendResponse(member_name + '\'s qualification is ' + snapshot.val()); // Send simple response to user
         }
       });
     },
@@ -266,20 +290,6 @@ function processV2Request (request, response) {
           console.log(snapshot.val());
           console.log("snapshot value is: " + snapshot.val());
           sendResponse(parameters['family-member2'] + ' is ' + snapshot.val() + ' to ' + parameters['family-member1']); // Send simple response to user
-        }
-      });
-    },
-    // to get the family member position.
-    'get-position': () => {
-      var ref = firebase.ref('mydb/family/' + parameters['family-member'] + '/who');
-      ref.orderByKey().on("value", function(snapshot) {
-        if(snapshot===null){
-          sendResponse('Wrong family member'); // Send simple response to user
-        }else{
-          console.log("snapshot is: ");
-          console.log(snapshot.val());
-          console.log("snapshot value is: " + snapshot.val());
-          sendResponse(parameters['family-member'] + ' is ' + snapshot.val()); // Send simple response to user
         }
       });
     },
