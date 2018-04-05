@@ -220,62 +220,66 @@ function processV2Request (request, response) {
       console.log("my-action: " + parameters['my-action']);
       var member_name = parameters['family-member'];
       var member_info = parameters['member-info'];
-      var contextStr = '"outputContexts" : [{"name":"my-context", "lifespan":5, "parameters":{';
-      var contextObj = null;
+      var objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"my-context", "lifespan":5, "parameters":{}}]}');
 
-      if(member_name===null){
+      console.log("member_name: " + member_name);
+      console.log("member_info: " + member_info);
+      
+      if(member_name===null || member_name===''){
+        console.log("member_name is empty, so reading value from 'member-name' parameter");
         member_name = parameters['member-name'];
-      }else{
-        // set #my-context.family-member = member_name
-        contextStr = contextStr + '"family-member" : "' + member_name + '"';
-        if(member_info===null){
-          contextStr = contextStr + '}}]';
-          contextObj = JSON.parse(contextStr);
-          sendResponse(contextObj);
-          //return;
-        }
       }
-      if(member_info===null){
+
+      if(member_info===null || member_info===''){
+        console.log("member_info is empty, so reading value from 'my-action' parameter");
         member_info = parameters['my-action'];
-      }else{
-        //set #my-context.member-info = member_info
-        if(member_name!==null){
-          contextStr = contextStr + ',';
-        }
-        contextStr = contextStr + '"member-info" : "' + member_info + '"}}]';
-        console.log(contextStr);
-        contextObj = JSON.parse(contextStr);
-        sendResponse(contextObj);
-        //return;
       }
+
+      objOutputContexts["outputContexts"][0].parameters["family-member"] = member_name;
+      objOutputContexts["outputContexts"][0].parameters["member-info"] = member_info;
 
       if(member_name===null && member_info===null){
-        sendResponse('Sorry, i did not get you question.  Can you reframe your question again ?'); // Send simple response to user
+        objOutputContexts.displayText = 'Sorry, i did not get you question.  Can you reframe your question again ?';
+        console.log(objOutputContexts.stringify);
+        sendResponse(objOutputContexts);
       }else if(member_name===null){
-        sendResponse('Whose ' + member_info + ' you would like to know ?'); // Send simple response to user
+        objOutputContexts.displayText = 'Whose ' + member_info + ' you would like to know ?';
+        console.log(objOutputContexts.stringify);
+        sendResponse(objOutputContexts);
       }else if(member_info===null){
-        sendResponse('What would you like to know about ' + member_name + '?'); // Send simple response to user
+        objOutputContexts.displayText = 'What would you like to know about ' + member_name + '?';
+        console.log(objOutputContexts.stringify);
+        sendResponse(objOutputContexts);
       }
+
+
+      console.log("executing firebase query with member_name(" + member_name + ") and member_info(" + member_info + ")");
 
       var ref = firebase.ref('mydb/family/' + member_name + '/' + member_info);
       ref.orderByKey().on("value", function(snapshot) {
         if(snapshot===null){
-            sendResponse('Wrong family member'); // Send simple response to user
+          objOutputContexts.displayText = 'Wrong family member';
+          sendResponse(objOutputContexts); // Send simple response to user
         }else{
-          console.log("snapshot is: ");
-          console.log(snapshot.val());
-          console.log("age is: " + snapshot.val());
+          console.log(member_info + " is: " + snapshot.val());
         }
+
         if(member_info==='age'){
-          sendResponse(member_name + ' is ' + snapshot.val() + ' years old !!'); // Send simple response to user
+          objOutputContexts["displayText"] = member_name + ' is ' + snapshot.val() + ' years old !!'; // Send simple response to user
+          console.log(JSON.stringify(objOutputContexts));
+          sendResponse(objOutputContexts); // Send simple response to user
         }else if(member_info==='position'){
-          sendResponse(member_name + ' is ' + snapshot.val()); // Send simple response to user
+          objOutputContexts.displayText = member_name + ' is ' + snapshot.val(); // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
         }else if(member_info==='job'){
-          sendResponse(member_name + ' is ' + snapshot.val()); // Send simple response to user
+          objOutputContexts.displayText = member_name + ' is ' + snapshot.val(); // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
         }else if(member_info==='location'){
-          sendResponse(member_name + ' is living in ' + snapshot.val()); // Send simple response to user
+          objOutputContexts.displayText = member_name + ' is living in ' + snapshot.val(); // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
         }else if(member_info==='education'){
-          sendResponse(member_name + '\'s qualification is ' + snapshot.val()); // Send simple response to user
+          objOutputContexts.displayText = member_name + '\'s qualification is ' + snapshot.val(); // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
         }
       });
     },
