@@ -220,7 +220,8 @@ function processV2Request (request, response) {
       console.log("my-action: " + parameters['my-action']);
       var member_name = parameters['family-member'];
       var member_info = parameters['member-info'];
-      var objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"my-context", "lifespan":5, "parameters":{}}]}');
+      //request.body.session+'/contexts/something'} 
+      var objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"' + request.body.session + '/contexts/my-context", "lifespanCount":10, "parameters":{}}]}');
 
       console.log("member_name: " + member_name);
       console.log("member_info: " + member_info);
@@ -239,19 +240,18 @@ function processV2Request (request, response) {
       objOutputContexts["outputContexts"][0].parameters["member-info"] = member_info;
 
       if(member_name===null && member_info===null){
-        objOutputContexts.displayText = 'Sorry, i did not get you question.  Can you reframe your question again ?';
+        //objOutputContexts.fulfillmentText = 'Sorry, i did not get you question.  Can you reframe your question again ?';
         console.log(objOutputContexts.stringify);
         sendResponse(objOutputContexts);
       }else if(member_name===null){
-        objOutputContexts.displayText = 'Whose ' + member_info + ' you would like to know ?';
+        objOutputContexts.fulfillmentText = 'Whose ' + member_info + ' you would like to know ?';
         console.log(objOutputContexts.stringify);
         sendResponse(objOutputContexts);
       }else if(member_info===null){
-        objOutputContexts.displayText = 'What would you like to know about ' + member_name + '?';
+        objOutputContexts.fulfillmentText = 'What would you like to know about ' + member_name + '?';
         console.log(objOutputContexts.stringify);
         sendResponse(objOutputContexts);
       }
-
 
       console.log("executing firebase query with member_name(" + member_name + ") and member_info(" + member_info + ")");
 
@@ -265,20 +265,20 @@ function processV2Request (request, response) {
         }
 
         if(member_info==='age'){
-          objOutputContexts["displayText"] = member_name + ' is ' + snapshot.val() + ' years old !!'; // Send simple response to user
-          console.log(JSON.stringify(objOutputContexts));
+          objOutputContexts["fulfillmentText"] = member_name + ' is ' + snapshot.val() + ' years old !!'; // Send simple response to user
           sendResponse(objOutputContexts); // Send simple response to user
+          //sendResponse(member_name + ' is ' + snapshot.val() + ' years old !!');
         }else if(member_info==='position'){
-          objOutputContexts.displayText = member_name + ' is ' + snapshot.val(); // Send simple response to user
+          objOutputContexts.fulfillmentText = member_name + ' is ' + snapshot.val(); // Send simple response to user
           sendResponse(objOutputContexts); // Send simple response to user
         }else if(member_info==='job'){
-          objOutputContexts.displayText = member_name + ' is ' + snapshot.val(); // Send simple response to user
+          objOutputContexts.fulfillmentText = member_name + ' is ' + snapshot.val(); // Send simple response to user
           sendResponse(objOutputContexts); // Send simple response to user
         }else if(member_info==='location'){
-          objOutputContexts.displayText = member_name + ' is living in ' + snapshot.val(); // Send simple response to user
+          objOutputContexts.fulfillmentText = member_name + ' is living in ' + snapshot.val(); // Send simple response to user
           sendResponse(objOutputContexts); // Send simple response to user
         }else if(member_info==='education'){
-          objOutputContexts.displayText = member_name + '\'s qualification is ' + snapshot.val(); // Send simple response to user
+          objOutputContexts.fulfillmentText = member_name + '\'s qualification is ' + snapshot.val(); // Send simple response to user
           sendResponse(objOutputContexts); // Send simple response to user
         }
       });
@@ -321,7 +321,7 @@ function processV2Request (request, response) {
       response.json(responseJson); // Send response to Dialogflow
     } else {
       // If the response to the user includes rich responses or contexts send them to Dialogflow
-      let responseJson = {};
+      let responseJson = {fulfillmentText: responseToUser.fulfillmentText};
       // Define the text response
       responseJson.fulfillmentText = responseToUser.fulfillmentText;
       // Optional: add rich messages for integrations (https://dialogflow.com/docs/rich-messages)
@@ -335,6 +335,7 @@ function processV2Request (request, response) {
       // Send the response to Dialogflow
       console.log('Response to Dialogflow: ' + JSON.stringify(responseJson));
       response.json(responseJson);
+      //response["queryResult"] = responseJson;
     }
   }
 }
