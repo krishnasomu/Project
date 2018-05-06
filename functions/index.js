@@ -8,7 +8,7 @@ firebaseAdmin.initializeApp({
 }).firebase;
 const firebase = firebaseAdmin.database();
   //firebase.initializeApp(config);
-  exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, response) => {
+exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, response) => {
   console.log('Dialogflow Request headers: ' + JSON.stringify(request.headers));
   console.log('Dialogflow Request body: ' + JSON.stringify(request.body));
   if (request.body.result) {
@@ -18,6 +18,177 @@ const firebase = firebaseAdmin.database();
   } else {
     console.log('Invalid Request');
     return response.status(400).end('Invalid Webhook Request (expecting v1 or v2 webhook request)');
+  }
+});
+exports.SPTZoneBotFulFillment = functions.https.onRequest((request, response) => {
+  console.log('Dialogflow Request headers: ' + JSON.stringify(request.headers));
+  console.log('Dialogflow Request body: ' + JSON.stringify(request.body));
+  // An action is a string used to identify what needs to be done in fulfillment
+  let action = (request.body.queryResult.action) ? request.body.queryResult.action : 'default';
+  // Parameters are any entites that Dialogflow has extracted from the request.
+  let parameters = request.body.queryResult.parameters || {}; // https://dialogflow.com/docs/actions-and-parameters
+  // Contexts are objects used to track and store conversation state
+  let inputContexts = request.body.queryResult.contexts; // https://dialogflow.com/docs/contexts
+  // Get the request source (Google Assistant, Slack, API, etc)
+  let requestSource = (request.body.originalDetectIntentRequest) ? request.body.originalDetectIntentRequest.source : undefined;
+  // Get the session ID to differentiate calls from different users
+  let session = (request.body.session) ? request.body.session : undefined;
+  // Create handlers for Dialogflow actions as well as a 'default' handler
+  const actionHandlers = {
+    // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
+    'welcome': () => {
+        console.log("creating database object");
+        /*
+        var database = firebase.database('booming-cosine-188305-1e6db');
+        console.log("creating database ref object");
+        */
+        var ref = firebase.ref('sptz/visitors/' + session);
+        console.log("creating JSON object");
+        var obj = {"name":parameters['introducer']};
+        console.log("pushing JSON object to DB");
+        ref.push(obj);
+        console.log("successfully JSON object inserted");
+      // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
+      sendResponse('Hello ' + parameters['introducer'] + ', Can you please give us your phone number ? ?? '); // Send simple response to user
+    },
+    'phonenumber': () => {
+      console.log("creating database object");
+      /*
+      var database = firebase.database('booming-cosine-188305-1e6db');
+      console.log("creating database ref object");
+      */
+      var ref = firebase.ref('sptz/visitors/' + session);
+      console.log("creating JSON object for phone number");
+      var obj = {"phone":parameters['phone-number']};
+      console.log("pushing JSON object to DB");
+      ref.push(obj);
+      console.log("successfully JSON object inserted");
+    // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
+    sendResponse('Hello ' + parameters['introducer'] + ', How may i help you ? ?? '); // Send simple response to user
+  },
+  // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
+    'get-details': () => {
+      // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
+      console.log("my-action: " + parameters['my-action']);
+      var member_name = parameters['family-member'];
+      var member_info = parameters['member-info'];
+      //request.body.session+'/contexts/something'} 
+      var objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"' + request.body.session + '/contexts/my-context", "lifespanCount":10, "parameters":{}}]}');
+
+      console.log("member_name: " + member_name);
+      console.log("member_info: " + member_info);
+      
+      if(member_name===null || member_name===''){
+        console.log("member_name is empty, so reading value from 'member-name' parameter");
+        member_name = parameters['member-name'];
+      }
+
+      if(member_info===null || member_info===''){
+        console.log("member_info is empty, so reading value from 'my-action' parameter");
+        member_info = parameters['my-action'];
+      }
+
+      objOutputContexts["outputContexts"][0].parameters["family-member"] = member_name;
+      objOutputContexts["outputContexts"][0].parameters["member-info"] = member_info;
+
+      if(member_name===null && member_info===null){
+        //objOutputContexts.fulfillmentText = 'Sorry, i did not get you question.  Can you reframe your question again ?';
+        console.log(objOutputContexts.stringify);
+        sendResponse(objOutputContexts);
+      }else if(member_name===null){
+        objOutputContexts.fulfillmentText = 'Whose ' + member_info + ' you would like to know ?';
+        console.log(objOutputContexts.stringify);
+        sendResponse(objOutputContexts);
+      }else if(member_info===null){
+        objOutputContexts.fulfillmentText = 'What would you like to know about ' + member_name + '?';
+        console.log(objOutputContexts.stringify);
+        sendResponse(objOutputContexts);
+      }
+
+      console.log("executing firebase query with member_name(" + member_name + ") and member_info(" + member_info + ")");
+
+      var ref = firebase.ref('mydb/family/' + member_name + '/' + member_info);
+      ref.orderByKey().on("value", function(snapshot) {
+        if(snapshot===null){
+          objOutputContexts.displayText = 'Wrong family member';
+          sendResponse(objOutputContexts); // Send simple response to user
+        }else{
+          console.log(member_info + " is: " + snapshot.val());
+        }
+
+        if(member_info==='age'){
+          objOutputContexts["fulfillmentText"] = member_name + ' is ' + snapshot.val() + ' years old !!'; // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
+          //sendResponse(member_name + ' is ' + snapshot.val() + ' years old !!');
+        }else if(member_info==='position'){
+          objOutputContexts.fulfillmentText = member_name + ' is ' + snapshot.val(); // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
+        }else if(member_info==='job'){
+          objOutputContexts.fulfillmentText = member_name + ' is ' + snapshot.val(); // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
+        }else if(member_info==='location'){
+          objOutputContexts.fulfillmentText = member_name + ' is living in ' + snapshot.val(); // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
+        }else if(member_info==='education'){
+          objOutputContexts.fulfillmentText = member_name + '\'s qualification is ' + snapshot.val(); // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
+        }
+      });
+    },
+    // to get the relationships
+    'get-relationship': () => {
+      var ref = firebase.ref('mydb/family/' + parameters['family-member1'] + '/relationship/' + parameters['family-member2']);
+      ref.orderByKey().on("value", function(snapshot) {
+        if(snapshot===null){
+          sendResponse('Wrong family member'); // Send simple response to user
+        }else{
+          console.log("snapshot is: ");
+          console.log(snapshot.val());
+          console.log("snapshot value is: " + snapshot.val());
+          sendResponse(parameters['family-member2'] + ' is ' + snapshot.val() + ' to ' + parameters['family-member1']); // Send simple response to user
+        }
+      });
+    },
+    // Default handler for unknown or undefined actions
+    'default': () => {
+      let responseToUser = {
+        //fulfillmentMessages: richResponsesV2, // Optional, uncomment to enable
+        //outputContexts: [{ 'name': `${session}/contexts/weather`, 'lifespanCount': 2, 'parameters': {'city': 'Rome'} }], // Optional, uncomment to enable
+        fulfillmentText: 'This is from Dialogflow\'s Cloud Functions for Firebase editor! :-)' // displayed response
+      };
+      sendResponse(responseToUser);
+    }
+  };
+  // If undefined or unknown action use the default handler
+  if (!actionHandlers[action]) {
+    action = 'default';
+  }
+  // Run the proper handler function to handle the request from Dialogflow
+  actionHandlers[action]();
+  // Function to send correctly formatted responses to Dialogflow which are then sent to the user
+  function sendResponse (responseToUser) {
+    // if the response is a string send it as a response to the user
+    if (typeof responseToUser === 'string') {
+      let responseJson = {fulfillmentText: responseToUser}; // displayed response
+      response.json(responseJson); // Send response to Dialogflow
+    } else {
+      // If the response to the user includes rich responses or contexts send them to Dialogflow
+      let responseJson = {fulfillmentText: responseToUser.fulfillmentText};
+      // Define the text response
+      responseJson.fulfillmentText = responseToUser.fulfillmentText;
+      // Optional: add rich messages for integrations (https://dialogflow.com/docs/rich-messages)
+      if (responseToUser.fulfillmentMessages) {
+        responseJson.fulfillmentMessages = responseToUser.fulfillmentMessages;
+      }
+      // Optional: add contexts (https://dialogflow.com/docs/contexts)
+      if (responseToUser.outputContexts) {
+        responseJson.outputContexts = responseToUser.outputContexts;
+      }
+      // Send the response to Dialogflow
+      console.log('Response to Dialogflow: ' + JSON.stringify(responseJson));
+      response.json(responseJson);
+      //response["queryResult"] = responseJson;
+    }
   }
 });
 function processV1Request (request, response) {
