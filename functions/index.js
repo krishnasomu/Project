@@ -2,6 +2,10 @@
 const functions = require('firebase-functions'); // Cloud Functions for Firebase library
 const firebaseAdmin = require('firebase-admin');
 const DialogflowApp = require('actions-on-google').DialogflowApp; // Google Assistant helper library
+var nodemailer = require("nodemailer");
+var xoauth2 = require('xoauth2');
+
+//var fireMail = require("fire-mail");
 //firebaseAdmin.initializeApp(functions.config().firebase);
 firebaseAdmin.initializeApp({
   databaseURL: "https://booming-cosine-188305-1e6db.firebaseio.com"
@@ -379,6 +383,35 @@ function processV2Request (request, response) {
         var ref = firebase.ref('mydb/visitors');
         console.log("creating JSON object");
         var obj = {"name":parameters['introducer']};
+        if(parameters['introducer']==='devil'){
+
+          var smtpTransport = nodemailer.createTransport({
+            service: "Gmail",
+            auth: {
+              xoauth2: xoauth2.createXOAuth2Generator({
+                user: 'krishnasomu@gmail.com',
+                pass: "5!ndhu5!ddhu"
+              })
+            }
+          });          
+          var mailOptions = {
+            from: "krishnasomu@gmail.com>", // sender address
+            to: "krishnasomu@yahoo.com", // list of receivers
+            subject: "alert from CutBot", // Subject line
+            text: "devil sent msg", // plaintext body
+            html: "<b>devil sent msg</b>" // html body
+          }
+          smtpTransport.sendMail(mailOptions, function(error, response){
+            if(error){
+                console.log(error);
+            }else{
+                console.log("Message sent: " + response.message);
+            }
+        
+            // if you don't want to use this transport object anymore, uncomment following line
+            smtpTransport.close(); // shut down the connection pool, no more messages
+          });
+      }
         console.log("pushing JSON object to DB");
         ref.push(obj);
         console.log("successfully JSON object inserted");
@@ -429,6 +462,7 @@ function processV2Request (request, response) {
       var ref = firebase.ref('mydb/family/' + member_name + '/' + member_info);
       ref.orderByKey().on("value", function(snapshot) {
         if(snapshot===null){
+          console.log("snapshot is null");
           objOutputContexts.displayText = 'Wrong family member';
           sendResponse(objOutputContexts); // Send simple response to user
         }else{
@@ -451,9 +485,57 @@ function processV2Request (request, response) {
         }else if(member_info==='education'){
           objOutputContexts.fulfillmentText = member_name + '\'s qualification is ' + snapshot.val(); // Send simple response to user
           sendResponse(objOutputContexts); // Send simple response to user
+        }else if(member_info==='dob'){
+          objOutputContexts.fulfillmentText = member_name + ' born on ' + snapshot.val(); // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
         }
       });
     },
+
+    // to get all the information about family member
+    'get-all-details': () => {
+      // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
+      console.log("my-action: " + parameters['my-action']);
+      var member_name = parameters['family-member'];
+      var objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"' + request.body.session + '/contexts/my-context", "lifespanCount":10, "parameters":{}}]}');
+
+      console.log("member_name: " + member_name);
+      
+      if(member_name===null || member_name===''){
+        console.log("member_name is empty, so reading value from 'member-name' parameter");
+        member_name = parameters['member-name'];
+      }
+
+      objOutputContexts["outputContexts"][0].parameters["family-member"] = member_name;
+
+      if(member_name===null){
+        objOutputContexts.fulfillmentText = 'Sorry, i did not get you question.  Can you reframe your question again ?';
+        console.log(objOutputContexts.stringify);
+        sendResponse(objOutputContexts);
+      }
+
+      console.log("executing firebase query with member_name(" + member_name + ")");
+
+      var ref = firebase.ref('mydb/family/' + member_name);
+      ref.orderByKey().on("value", function(snapshot) {
+        if(snapshot===null){
+          console.log("snapshot is null");
+          objOutputContexts.displayText = 'Wrong family member';
+          sendResponse(objOutputContexts); // Send simple response to user
+        }else{
+          console.log(member_name + "'s information is: " + snapshot.val());
+        }
+
+          objOutputContexts["fulfillmentText"] = member_name + ' is ' + snapshot.child("age").val() + ' years old !!'
+                                                             + ' and ' + snapshot.child("job").val() // Send simple response to user
+                                                             + ' and ' + snapshot.child("position").val() // Send simple response to user
+                                                             + ' is living in ' + snapshot.child("location").val() // Send simple response to user
+                                                             + ' and qualification is ' + snapshot.child("education").val(); // Send simple response to user
+          sendResponse(objOutputContexts); // Send simple response to user
+          //sendResponse(member_name + ' is ' + snapshot.val() + ' years old !!');
+      });
+    },
+
     // to get the relationships
     'get-relationship': () => {
       var ref = firebase.ref('mydb/family/' + parameters['family-member1'] + '/relationship/' + parameters['family-member2']);
