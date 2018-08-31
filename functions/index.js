@@ -385,25 +385,47 @@ function processV2Request (request, response) {
         var obj = {"name":parameters['introducer']};
         if(parameters['introducer']==='devil'){
 
+          console.log("introducer is devil");
+          
+          /*
           var smtpTransport = nodemailer.createTransport({
-            service: "Gmail",
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
             auth: {
-              xoauth2: xoauth2.createXOAuth2Generator({
-                user: 'krishnasomu@gmail.com',
-                pass: "5!ndhu5!ddhu"
-              })
+              type: 'OAuth2',
+              user: 'krishnasomu',
+              clientId: '735150123528-r3pmb5r2m7l0s4jhmdanlhrl37lnhfbm.apps.googleusercontent.com',
+              clientSecret: '23j4EujaclnWDOTJL46OIvzd',
+              refreshToken: '1/matnfYe-rvxjPxb0JTK0P1NQ9CrB4MEUhAiq2gkZA0E',
+              accessToken: 'ya29.GlsKBkHFR3DXFBR3yf1PGZ_4mwekXUvxvJ2BADO1c3piCbUrAqs_npcenZA_Kv3BImDG5a2w4V4DIuy4-rHSA-ih5qdM2WK_NF3VBkZZAqTXi2wDtDQB-EEh3DWU'
             }
-          });          
+          });
+          */        
+         
+         var smtpTransport = nodemailer.createTransport({
+          host: 'smtpout.asia.secureserver.net',
+          port: 465,
+          secure: true,
+          auth: {
+            user: 'krishna@somu.co.in',
+            pass: '5!ndhu5!ddhu' 
+          }
+        });
+        
+
+        console.log("transport object created");
           var mailOptions = {
-            from: "krishnasomu@gmail.com>", // sender address
+            from: "krishna@somu.co.in", // sender address
             to: "krishnasomu@yahoo.com", // list of receivers
-            subject: "alert from CutBot", // Subject line
+            subject: "alert from Cute Bot", // Subject line
             text: "devil sent msg", // plaintext body
             html: "<b>devil sent msg</b>" // html body
           }
+          console.log("mail options object created");
           smtpTransport.sendMail(mailOptions, function(error, response){
             if(error){
-                console.log(error);
+                console.log("error while sending message: " + error);
             }else{
                 console.log("Message sent: " + response.message);
             }
@@ -411,6 +433,7 @@ function processV2Request (request, response) {
             // if you don't want to use this transport object anymore, uncomment following line
             smtpTransport.close(); // shut down the connection pool, no more messages
           });
+          console.log("mail was sent");
       }
         console.log("pushing JSON object to DB");
         ref.push(obj);
