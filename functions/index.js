@@ -419,8 +419,8 @@ function processV2Request (request, response) {
             from: "krishna@somu.co.in", // sender address
             to: "krishnasomu@yahoo.com", // list of receivers
             subject: "alert from Cute Bot", // Subject line
-            text: "devil sent msg", // plaintext body
-            html: "<b>devil sent msg</b>" // html body
+            text: "devil has arrived", // plaintext body
+            html: "<b>devil has arrived</b>" // html body
           }
           console.log("mail options object created");
           smtpTransport.sendMail(mailOptions, function(error, response){
