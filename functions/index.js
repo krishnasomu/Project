@@ -3,6 +3,7 @@ const functions = require('firebase-functions'); // Cloud Functions for Firebase
 const firebaseAdmin = require('firebase-admin');
 const DialogflowApp = require('actions-on-google').DialogflowApp; // Google Assistant helper library
 var nodemailer = require("nodemailer");
+var randomstring = require("randomstring");
 var xoauth2 = require('xoauth2');
 
 //var fireMail = require("fire-mail");
@@ -24,6 +25,114 @@ exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, resp
     return response.status(400).end('Invalid Webhook Request (expecting v1 or v2 webhook request)');
   }
 });
+
+exports.sendEmail = functions.https.onRequest((request, response) => {
+  console.log('Request headers: ' + JSON.stringify(request.headers));
+  console.log('Request body: ' + JSON.stringify(request.body));
+
+  var strReturn = '';
+  var strRandomString = randomstring.generate(10);
+  var strFromEmailID = request.body.fromemailid;
+  var strToEmailID = request.body.toemailid;
+  var strSubject = "Chit-Chat Verification Code";
+  var strBody = "Verification Code is " + strRandomString;
+
+  if (strFromEmailID===null || strFromEmailID==='') {
+    strReturn = strReturn + 'Invalid from email ID' + '\n';
+  }
+  if (strToEmailID===null || strToEmailID==='') {
+    strReturn = strReturn + 'Invalid To email ID' + '\n';
+  }
+  if(strReturn===''){
+    var smtpTransport = nodemailer.createTransport({
+      host: 'smtpout.asia.secureserver.net',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'krishna@somu.co.in',
+        pass: '5!ndhu5!ddhu' 
+      }
+    });
+  
+    console.log("transport object created");
+
+    var mailOptions = {
+      from: strFromEmailID, // sender address
+      to: strToEmailID, // list of receivers
+      subject: strSubject, // Subject line
+      text: strBody, // plaintext body
+      html: "<b>" + strBody + "</b>" // html body
+    }
+
+    console.log("mail options object created");
+
+    smtpTransport.sendMail(mailOptions, function(error, response){
+      if(error){
+          console.log("error while sending message: " + error);
+      }else{
+          console.log("Message sent: " + response.message);
+          var ref = firebase.ref('mydb/chats/users/pre');
+          //console.log("creating JSON object");
+          //var obj = {strRandomString:strToEmailID};
+          console.log("pushing JSON object to DB");
+          try{
+            ref.child(strRandomString).set(strToEmailID);
+            //ref.child(strRandomString).setValue(strFromEmailID);
+          }catch(err){
+            console.log("error while inserting verification code into DB " + err);
+          }
+          console.log("successfully mail and code are inserted");
+      }
+  
+      // if you don't want to use this transport object anymore, uncomment following line
+      smtpTransport.close(); // shut down the connection pool, no more messages
+    });
+    console.log("mail was sent");
+    response.redirect("https://www.somu.co.in/chat/validate.html");
+  }else{
+    return response.status(400).end(strReturn);
+  }
+});
+
+exports.verifyEmail = functions.https.onRequest((request, response) => {
+  console.log('Request headers: ' + JSON.stringify(request.headers));
+  console.log('Request body: ' + JSON.stringify(request.body));
+
+  var strReturn = '';
+  var strEmailID = request.body.emailid;
+  var strVerificationCode = request.body.verificationCode;
+
+  if (strEmailID===null || strEmailID==='') {
+    strReturn = strReturn + 'Invalid email ID' + '\n';
+  }
+  if (strVerificationCode===null || strVerificationCode==='') {
+    strReturn = strReturn + 'Invalid Verification Code' + '\n';
+  }
+  if(strReturn===''){
+    var ref = firebase.ref('mydb/chats/users/pre/' + strVerificationCode);
+    console.log("pushing JSON object to DB");
+    try{
+      ref.on("value", function(snapshot) {
+        if(snapshot===null){
+          return response.status(400).end("Email and Code are not matching");
+        }else{
+          var strDBEmailID = snapshot.val();
+          if(strDBEmailID!=strEmailID){
+            return response.status(400).end("Email and Code are not matching");
+          }else{
+            response.redirect("https://www.somu.co.in/chat/signin.html");
+          }
+        }
+      });
+    }catch(err){
+      console.log("error while inserting verification code into DB " + err);
+    }
+    response.redirect("https://www.somu.co.in/chat/validate.html");
+  }else{
+    return response.status(400).end(strReturn);
+  }
+});
+
 exports.SPTZoneBotFulFillment = functions.https.onRequest((request, response) => {
   console.log('Dialogflow Request headers: ' + JSON.stringify(request.headers));
   console.log('Dialogflow Request body: ' + JSON.stringify(request.body));
