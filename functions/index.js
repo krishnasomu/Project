@@ -32,10 +32,12 @@ exports.sendEmail = functions.https.onRequest((request, response) => {
 
   var strReturn = '';
   var strRandomString = randomstring.generate(10);
-  var strFromEmailID = request.body.fromemailid;
-  var strToEmailID = request.body.toemailid;
+  var strFromEmailID = "krishna@somu.co.in";
+  var strToEmailID = request.body.emailid;
   var strSubject = "Chit-Chat Verification Code";
   var strBody = "Verification Code is " + strRandomString;
+  var strUserName = request.body.username;
+  var strPassword = request.body.password;
 
   if (strFromEmailID===null || strFromEmailID==='') {
     strReturn = strReturn + 'Invalid from email ID' + '\n';
@@ -71,13 +73,15 @@ exports.sendEmail = functions.https.onRequest((request, response) => {
           console.log("error while sending message: " + error);
       }else{
           console.log("Message sent: " + response.message);
-          var ref = firebase.ref('mydb/chats/users/pre');
-          //console.log("creating JSON object");
-          //var obj = {strRandomString:strToEmailID};
+          var ref = firebase.ref('mydb/chats/users');
+          var preref = firebase.ref('mydb/chats/users/pre');
+          console.log("creating JSON object");
+          var obj = {"password":strPassword, "emailid":strToEmailID, "status":"0"};
+          var preobj = {"emailid":strToEmailID, "username":strUserName};
           console.log("pushing JSON object to DB");
           try{
-            ref.child(strRandomString).set(strToEmailID);
-            //ref.child(strRandomString).setValue(strFromEmailID);
+            ref.child(strUserName).set(obj);
+            preref.child(strRandomString).set(preobj);
           }catch(err){
             console.log("error while inserting verification code into DB " + err);
           }
@@ -109,25 +113,37 @@ exports.verifyEmail = functions.https.onRequest((request, response) => {
     strReturn = strReturn + 'Invalid Verification Code' + '\n';
   }
   if(strReturn===''){
-    var ref = firebase.ref('mydb/chats/users/pre/' + strVerificationCode);
+    var preref = firebase.ref('mydb/chats/users/pre/' + strVerificationCode);
     console.log("pushing JSON object to DB");
     try{
-      ref.on("value", function(snapshot) {
+      preref.once("value", function(snapshot) {
         if(snapshot===null){
+          console.log("Snapshot is snull");
           return response.status(400).end("Email and Code are not matching");
         }else{
-          var strDBEmailID = snapshot.val();
-          if(strDBEmailID!=strEmailID){
+          var strDBEmailID = snapshot.child("emailid").val();
+          if(strDBEmailID!==strEmailID){
+            console.log("emails are not matching");
             return response.status(400).end("Email and Code are not matching");
           }else{
+            var strUserName = snapshot.child("username").val();
+            var ref = firebase.ref('mydb/chats/users/' + strUserName);
+            try{
+              ref.child("status").set("1");
+              console.log("status is changed to 1");
+            }catch(err1){
+              console.log("error while updating the status: " + err);
+            }
+            preref.remove();
+            console.log("record is removed from pre");
             response.redirect("https://www.somu.co.in/chat/signin.html");
           }
         }
       });
+      //preref.off();
     }catch(err){
-      console.log("error while inserting verification code into DB " + err);
+      console.log("error while validating verification code: " + err);
     }
-    response.redirect("https://www.somu.co.in/chat/validate.html");
   }else{
     return response.status(400).end(strReturn);
   }
