@@ -149,6 +149,48 @@ exports.verifyEmail = functions.https.onRequest((request, response) => {
   }
 });
 
+exports.authenticateUser = functions.https.onRequest((request, response) => {
+  console.log('Request headers: ' + JSON.stringify(request.headers));
+  console.log('Request body: ' + JSON.stringify(request.body));
+
+  var strReturn = '';
+  var strUserName = request.body.username;
+  var strPassword = request.body.password;
+
+  if (strUserName===null || strUserName==='') {
+    strReturn = strReturn + 'Invalid User Name' + '\n';
+  }
+  if (strPassword===null || strPassword==='') {
+    strReturn = strReturn + 'Invalid Password' + '\n';
+  }
+  if(strReturn===''){
+    var ref = firebase.ref('mydb/chats/users/' + strUserName);
+    console.log("pushing JSON object to DB");
+    try{
+      ref.once("value", function(snapshot) {
+        if(snapshot===null){
+          console.log("Snapshot is snull");
+          return response.status(400).end("User name is not registered");
+        }else{
+          var strDBPassword = snapshot.child("password").val();
+          if(strDBPassword!==strPassword){
+            console.log("Credentials are not matching");
+            return response.status(400).end("Credentials are not matching");
+          }else{
+            console.log("Login successful");
+            response.redirect("https://www.somu.co.in/chat/chat.html");
+          }
+        }
+      });
+      //preref.off();
+    }catch(err){
+      console.log("error while validating verification code: " + err);
+    }
+  }else{
+    return response.status(400).end(strReturn);
+  }
+});
+
 exports.SPTZoneBotFulFillment = functions.https.onRequest((request, response) => {
   console.log('Dialogflow Request headers: ' + JSON.stringify(request.headers));
   console.log('Dialogflow Request body: ' + JSON.stringify(request.body));
