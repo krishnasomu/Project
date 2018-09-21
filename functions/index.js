@@ -95,7 +95,7 @@ exports.sendEmail = functions.https.onRequest((request, response) => {
           console.log("Message sent: " + response.message);
           var ref = firebase.ref('mydb/chats/users');
           var preref = firebase.ref('mydb/chats/users/pre');
-          console.log("creating JSON object");
+          console.log("creating JSON object with password and email ID");
           var obj = {"password":strPassword, "emailid":strToEmailID, "status":"0"};
           var preobj = {"emailid":strToEmailID, "username":strUserName};
           console.log("pushing JSON object to DB");
@@ -228,22 +228,22 @@ exports.SPTZoneBotFulFillment = functions.https.onRequest((request, response) =>
   const actionHandlers = {
     // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
     'welcome': () => {
-        console.log("creating database object");
+        console.log("creating database object for welcome");
         /*
         var database = firebase.database('booming-cosine-188305-1e6db');
         console.log("creating database ref object");
         */
         var ref = firebase.ref('sptz/visitors/' + session);
-        console.log("creating JSON object");
+        console.log("creating JSON object with name and introducer");
         var obj = {"name":parameters['introducer']};
         console.log("pushing JSON object to DB");
         ref.push(obj);
-        console.log("successfully JSON object inserted");
+        console.log("welcome: successfully JSON object inserted");
       // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
       sendResponse('Hello ' + parameters['introducer'] + ', Can you please give us your phone number ? ?? '); // Send simple response to user
     },
     'phonenumber': () => {
-      console.log("creating database object");
+      console.log("creating database object for phonenumber");
       /*
       var database = firebase.database('booming-cosine-188305-1e6db');
       console.log("creating database ref object");
@@ -253,7 +253,7 @@ exports.SPTZoneBotFulFillment = functions.https.onRequest((request, response) =>
       var obj = {"phone":parameters['phone-number']};
       console.log("pushing JSON object to DB");
       ref.push(obj);
-      console.log("successfully JSON object inserted");
+      console.log("phonenumber: successfully JSON object inserted");
     // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
     sendResponse('Hello ' + parameters['introducer'] + ', How may i help you ? ?? '); // Send simple response to user
   },
@@ -323,7 +323,7 @@ function processV2Request (request, response) {
         console.log("creating database ref object");
         */
         var ref = firebase.ref('mydb/visitors');
-        console.log("creating JSON object");
+        console.log("creating JSON object with name and introducer for welcome");
         var obj = {"name":parameters['introducer']};
         if(parameters['introducer']==='devil'){
 
@@ -355,8 +355,6 @@ function processV2Request (request, response) {
           }
         });
         
-        
-
         console.log("transport object created");
           var mailOptions = {
             from: "krishna@somu.co.in", // sender address
@@ -381,7 +379,7 @@ function processV2Request (request, response) {
       }
         console.log("pushing JSON object to DB");
         ref.push(obj);
-        console.log("successfully JSON object inserted");
+        console.log("welcome: successfully JSON object inserted");
       // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
       sendResponse('Hello ' + parameters['introducer'] + ', what do you want to know about Somu\'s family ? ?? '); // Send simple response to user
     },
@@ -519,48 +517,66 @@ function processV2Request (request, response) {
     },
     // to get the photos
     'photos': () => {
-      var photo_year = parameters['photo-year'];
-      var photo_location = parameters['photo-location'];
-      var family_member = parameters['family-member'];
-      var strResponse = '';
-      var strIntent = request.body.queryResult.intent["displayName"];
-      var strPhotos = '';
+      try{
+        var photo_year = parameters['photo-year'];
+        var photo_location = parameters['photo-location'];
+        var family_member = parameters['family-member'];
+        var strResponse = '';
+        var strIntent = request.body.queryResult.intent["displayName"];
+        var strSessionID = request.body["session"];
+        var strPhotos = '';
+  
+        console.log("sessionid: " + strSessionID);
 
-      if(family_member===null || family_member===''){
-        family_member = parameters['prev-family-member'];
-      }
-      if(strIntent==='photos'){
-        if(photo_year===null || photo_year==='' && photo_location===null || photo_location==='' && family_member===null || family_member===''){
-          strResponse = strResponse + 'at least you have to narrow down the criteria by providing either \r\n';
-          strResponse = strResponse + 'person, year, ocassion or location';
-        }else{
-          
-          var ref = firebase.ref('mydb/photos');
-          ref.orderByKey().once("value", function(snapshot) {
-            if(snapshot===null){
-              sendResponse('No photos available as of now'); // Send simple response to user
-            }else{
-              snapshot.forEach(function(child){
-                var strDate = snapshot.child(child.key + "/date").val();
-                var strPersons = snapshot.child(child.key + "/persons").val();
-                var strPlaces = snapshot.child(child.key + "/places").val();
-                var strOcassion = snapshot.child(child.key + "/ocassion").val();
-                if(strDate.contains(photo_year) && strPersons.contains(family_member) && strPlaces.contains(photo_location)){
-                  strPhotos = strPhotos + child.key + ',';
-                }
-              });
-              if(strPhotos!==''){
-                var ref = firebase.ref('mydb/tmp');
-                ref.set(strPhotos);
-                sendResponse('Here are your photos'); // Send simple response to user
-              }
-            }
-          });
+        if(family_member===null || family_member===''){
+          family_member = parameters['prev-family-member'];
+          console.log("family_member is set from prev-family-member");
         }
-      }else{
-        console.log("from followup intent");
+        if(strIntent==='photos'){
+          console.log("strIntent is photos");
+          if((photo_year===null || photo_year==='') && (photo_location===null || photo_location==='') && (family_member===null || family_member==='')){
+            console.log("photos: all necessary parameters are empty");
+            strResponse = strResponse + 'Narrow down the criteria by providing either \r\n';
+            strResponse = strResponse + 'person, year, ocassion or location';
+            sendResponse(strResponse); // Send simple response to user
+          }else{
+            var ref = firebase.ref('mydb/photos');
+            var tmpref = firebase.ref('mydb/' + strSessionID);
+            ref.orderByKey().once("value", function(snapshot) {
+              if(snapshot===null){
+                console.log("no photos available in DB");
+                tmpref.set('');
+                sendResponse('No photos available as of now'); // Send simple response to user
+              }else{
+                snapshot.forEach(function(child){
+                  //console.log("checking for photo: " + child.key);
+                  var strDate = snapshot.child(child.key + "/date").val();
+                  var strPersons = snapshot.child(child.key + "/persons").val();
+                  var strPlaces = snapshot.child(child.key + "/places").val();
+                  var strOcassion = snapshot.child(child.key + "/ocassion").val();
+                  if(strDate.indexOf(photo_year)>-1 && strPersons.indexOf(family_member)>-1 && strPlaces.indexOf(photo_location)>-1){
+                    strPhotos = strPhotos + child.key + ',';
+                  }
+                });
+                if(strPhotos!==''){
+                  console.log("photos identified: " + strPhotos);
+                  tmpref.set(strPhotos);
+                  sendResponse('Here are your photos'); // Send simple response to user
+                }else{
+                  tmpref.set('');
+                  sendResponse('Sorry, there are no photos found with that criteria'); // Send simple response to user
+                }
+              }
+            });
+          }
+        }else{
+          console.log("from followup intent");
+        }
+        //sendResponse(strResponse); // Send simple response to user
+      }catch(err){
+        console.log("error @ photos action: " + err);
+        sendResponse(err); // Send simple response to user
       }
-      sendResponse(strResponse); // Send simple response to user
     },
     // Default handler for unknown or undefined actions
     'default': () => {
