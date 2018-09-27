@@ -2,12 +2,41 @@
 const functions = require('firebase-functions'); // Cloud Functions for Firebase library
 const firebaseAdmin = require('firebase-admin');
 const DialogflowApp = require('actions-on-google').DialogflowApp; // Google Assistant helper library
+const cors = require('cors');
+const express = require('express');
+let app = express();
+app.use(cors({ origin: false }));
+//app.options('*', cors());
+
+/*
+app.options("/*", function(req, res, next){
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, my-header');
+  res.status(200).send("my response from app.options");
+  console.log("inside app.options");
+});
+*/
+
 var nodemailer = require("nodemailer");
 var randomstring = require("randomstring");
 var xoauth2 = require('xoauth2');
 
 //var fireMail = require("fire-mail");
 //firebaseAdmin.initializeApp(functions.config().firebase);
+
+app.route('/')
+  .get(function(request, response) {
+    console.log("inside app.get");
+    response.status(200).send('my response from app.get');
+    response.end();
+  })
+  .post(function(request, response) {
+    console.log("inside app.post");
+    response.status(200).send('my response from app.post');
+    response.end();
+  });
+  
 firebaseAdmin.initializeApp({
   databaseURL: "https://booming-cosine-188305-1e6db.firebaseio.com"
 }).firebase;
@@ -27,12 +56,6 @@ exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, resp
 });
 
 exports.sendMessageToBot = functions.https.onRequest((request, response) => {
-
-  const cors = require('cors');
-  const express = require('express');
-  let app = express();
-  app.use(cors());
-  app.options('*', cors());
 
   console.log('Dialogflow Request headers: ' + JSON.stringify(request.headers));
   console.log('Dialogflow Request body: ' + JSON.stringify(request.body));
@@ -63,7 +86,7 @@ exports.sendMessageToBot = functions.https.onRequest((request, response) => {
   );
   */
 
-  console.log("header set");
+  //console.log("header set");
 
   /*
   response.writeHead(
@@ -73,10 +96,12 @@ exports.sendMessageToBot = functions.https.onRequest((request, response) => {
   );
   */
   //response.status(200);
-  response.write("response from sendMessageToBot");
-  response.end();
-
-  return //response.end();
+  //response.write("response from sendMessageToBot");
+  //response.end();
+  if (!request.path) {
+    request.url = `/${request.url}` // prepend '/' to keep query params if any
+  }
+  return app(request, response);
 });
 
 exports.sendEmail = functions.https.onRequest((request, response) => {
