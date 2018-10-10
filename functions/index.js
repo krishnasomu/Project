@@ -550,6 +550,7 @@ function processV2Request (request, response) {
       try{
         var photo_year = parameters['photo-year'];
         var photo_location = parameters['photo-location'];
+        var photo_ocassion = parameters['photo-ocassion'];
         var family_member = parameters['family-member'];
         var strResponse = '';
         var strIntent = request.body.queryResult.intent["displayName"];
@@ -568,7 +569,7 @@ function processV2Request (request, response) {
         }
         if(strIntent==='photos'){
           console.log("strIntent is photos");
-          if((photo_year===null || photo_year==='') && (photo_location===null || photo_location==='') && (family_member===null || family_member==='')){
+          if((photo_year===null || photo_year==='') && (photo_ocassion===null || photo_ocassion==='') && (photo_location===null || photo_location==='') && (family_member===null || family_member==='')){
             console.log("photos: all necessary parameters are empty");
             strResponse = strResponse + 'Narrow down the criteria by providing either \r\n';
             strResponse = strResponse + 'person, year, ocassion or location';
@@ -588,7 +589,7 @@ function processV2Request (request, response) {
                   var strPersons = snapshot.child(child.key + "/persons").val();
                   var strPlaces = snapshot.child(child.key + "/places").val();
                   var strOcassion = snapshot.child(child.key + "/ocassion").val();
-                  if(strDate.indexOf(photo_year)>-1 && strPersons.indexOf(family_member)>-1 && strPlaces.indexOf(photo_location)>-1){
+                  if(strDate.indexOf(photo_year)>-1 && strPersons.indexOf(family_member)>-1 && strPlaces.indexOf(photo_location)>-1 && strOcassion.indexOf(photo_ocassion)>-1){
                     //image.setImage('https://www.somu.co.in/images/photos/' + child.key + '.jpg');
                     strPhotos = strPhotos + child.key + ',';
                   }
