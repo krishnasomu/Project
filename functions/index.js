@@ -42,6 +42,7 @@ firebaseAdmin.initializeApp({
 }).firebase;
 const firebase = firebaseAdmin.database();
   //firebase.initializeApp(config);
+
 exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, response) => {
   console.log('Dialogflow Request headers: ' + JSON.stringify(request.headers));
   console.log('Dialogflow Request body: ' + JSON.stringify(request.body));
@@ -53,55 +54,6 @@ exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, resp
     console.log('Invalid Request');
     return response.status(400).end('Invalid Webhook Request (expecting v1 or v2 webhook request)');
   }
-});
-
-exports.sendMessageToBot = functions.https.onRequest((request, response) => {
-
-  console.log('Dialogflow Request headers: ' + JSON.stringify(request.headers));
-  console.log('Dialogflow Request body: ' + JSON.stringify(request.body));
-
-  /*
-  response.header("Access-Control-Allow-Origin", "*");
-  response.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  response.header("Access-Control-Allow-Headers", "content-type, accept, my-header");
-  response.header("Access-Control-Max-Age", 1000);
-  response.header("Access-Control-Allow-Credentials", true);
-  response.header("content-length", 1000);
-  response.header("Content-Type", "text/html");
-  response.flushHeaders();
-  */
-
-  /*
-  response.writeHead(
-    201,
-    {
-        "Access-Control-Allow-Origin": "https://www.somu.co.in",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "content-type, accept, my-header",
-        "Access-Control-Max-Age": 1000, // Seconds.
-        "Access-Control-Allow-Credentials": true,
-        "content-length": 1000,
-        "Content-Type":"text/html"
-    }
-  );
-  */
-
-  //console.log("header set");
-
-  /*
-  response.writeHead(
-    200,
-    {
-    }
-  );
-  */
-  //response.status(200);
-  //response.write("response from sendMessageToBot");
-  //response.end();
-  if (!request.path) {
-    request.url = `/${request.url}` // prepend '/' to keep query params if any
-  }
-  return app(request, response);
 });
 
 exports.sendEmail = functions.https.onRequest((request, response) => {
@@ -601,9 +553,12 @@ function processV2Request (request, response) {
         var family_member = parameters['family-member'];
         var strResponse = '';
         var strIntent = request.body.queryResult.intent["displayName"];
-        var strSessionID = request.body["session"];
+        var strFullSessionID = request.body["session"];
+        var lastSlashPosition = strFullSessionID.lastIndexOf('/');
+        var lengthSessionID = strFullSessionID.length;
+        var strSessionID = strFullSessionID.slice(lastSlashPosition,lengthSessionID);
         var strPhotos = '';
-        var image = new Image('');
+        //var image = new Image('');
   
         console.log("sessionid: " + strSessionID);
 
@@ -620,7 +575,7 @@ function processV2Request (request, response) {
             sendResponse(strResponse); // Send simple response to user
           }else{
             var ref = firebase.ref('mydb/photos');
-            var tmpref = firebase.ref('mydb/' + strSessionID);
+            var tmpref = firebase.ref('mydb/displayphotos/' + strSessionID);
             ref.orderByKey().once("value", function(snapshot) {
               if(snapshot===null){
                 console.log("no photos available in DB");
@@ -634,7 +589,7 @@ function processV2Request (request, response) {
                   var strPlaces = snapshot.child(child.key + "/places").val();
                   var strOcassion = snapshot.child(child.key + "/ocassion").val();
                   if(strDate.indexOf(photo_year)>-1 && strPersons.indexOf(family_member)>-1 && strPlaces.indexOf(photo_location)>-1){
-                    image.setImage('https://www.somu.co.in/images/photos/' + child.key + '.jpg');
+                    //image.setImage('https://www.somu.co.in/images/photos/' + child.key + '.jpg');
                     strPhotos = strPhotos + child.key + ',';
                   }
                 });
