@@ -411,7 +411,11 @@ function processV2Request (request, response) {
         ref.push(obj);
         console.log("welcome: successfully JSON object inserted");
       // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
-      sendResponse('Hello ' + parameters['introducer'] + ', what do you want to know about Somu\'s family ? ?? '); // Send simple response to user
+      if(parameters['introducer']==='' || parameters['introducer']==='[]' || parameters['introducer']===null){
+        sendResponse("Hi, i'm cute bot of somu. What's your name ?"); // Send simple response to user
+      }else{
+        sendResponse('Hello ' + parameters['introducer'] + ", i'm cute bot of somu. what do you want to know about Somu's family ?"); // Send simple response to user
+      }  
     },
     // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
     'get-details': () => {
