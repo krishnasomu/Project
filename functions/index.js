@@ -270,7 +270,7 @@ exports.SPTZoneBotFulFillment = functions.https.onRequest((request, response) =>
         ref.push(obj);
         console.log("welcome: successfully JSON object inserted");
       // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
-      sendResponse('Hello ' + parameters['introducer'] + ', Can you please give us your phone number ? ?? '); // Send simple response to user
+      sendResponse(response,'Hello ' + parameters['introducer'] + ', Can you please give us your phone number ? ?? '); // Send simple response to user
     },
     'phonenumber': () => {
       console.log("creating database object for phonenumber");
@@ -285,7 +285,7 @@ exports.SPTZoneBotFulFillment = functions.https.onRequest((request, response) =>
       ref.push(obj);
       console.log("phonenumber: successfully JSON object inserted");
     // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
-    sendResponse('Hello ' + parameters['introducer'] + ', How may i help you ? ?? '); // Send simple response to user
+    sendResponse(response,'Hello ' + parameters['introducer'] + ', How may i help you ? ?? '); // Send simple response to user
   },
     // Default handler for unknown or undefined actions
     'default': () => {
@@ -294,7 +294,7 @@ exports.SPTZoneBotFulFillment = functions.https.onRequest((request, response) =>
         //outputContexts: [{ 'name': `${session}/contexts/weather`, 'lifespanCount': 2, 'parameters': {'city': 'Rome'} }], // Optional, uncomment to enable
         fulfillmentText: 'This is from Dialogflow\'s Cloud Functions for Firebase editor! :-)' // displayed response
       };
-      sendResponse(responseToUser);
+      sendResponse(response,responseToUser);
     }
   };
   // If undefined or unknown action use the default handler
@@ -304,7 +304,7 @@ exports.SPTZoneBotFulFillment = functions.https.onRequest((request, response) =>
   // Run the proper handler function to handle the request from Dialogflow
   actionHandlers[action]();
   // Function to send correctly formatted responses to Dialogflow which are then sent to the user
-  function sendResponse (responseToUser) {
+  function sendResponse (response,responseToUser) {
     // if the response is a string send it as a response to the user
     if (typeof responseToUser === 'string') {
       let responseJson = {fulfillmentText: responseToUser}; // displayed response
@@ -332,6 +332,124 @@ exports.SPTZoneBotFulFillment = functions.https.onRequest((request, response) =>
 /*
 * Function to handle v2 webhook requests from Dialogflow
 */
+function sendResponse (response,responseToUser) {
+  // if the response is a string send it as a response to the user
+  if (typeof responseToUser === 'string') {
+    let responseJson = {fulfillmentText: responseToUser}; // displayed response
+    response.json(responseJson); // Send response to Dialogflow
+  } else {
+    // If the response to the user includes rich responses or contexts send them to Dialogflow
+    let responseJson = {fulfillmentText: responseToUser.fulfillmentText};
+    // Define the text response
+    responseJson.fulfillmentText = responseToUser.fulfillmentText;
+    // Optional: add rich messages for integrations (https://dialogflow.com/docs/rich-messages)
+    if (responseToUser.fulfillmentMessages) {
+      responseJson.fulfillmentMessages = responseToUser.fulfillmentMessages;
+    }
+    // Optional: add contexts (https://dialogflow.com/docs/contexts)
+    if (responseToUser.outputContexts) {
+      responseJson.outputContexts = responseToUser.outputContexts;
+    }
+    // Send the response to Dialogflow
+    console.log('Response to Dialogflow: ' + JSON.stringify(responseJson));
+    response.json(responseJson);
+    //response["queryResult"] = responseJson;
+  }
+}
+
+function checkEmpty(pParam){
+  try{
+    if(pParam === null){
+      return '';
+    }else{
+      if(typeof pParam === 'undefined'){
+        return '';
+      }else{
+       return pParam; 
+      }
+    }
+  }catch(err){
+    console.log("sent '' back, because error returned while checking for empty/null/undefined: " + err);
+    return '';
+  }
+}
+
+function actionPhotos(request, response){
+  let parameters = request.body.queryResult.parameters || {}; // https://dialogflow.com/docs/actions-and-parameters
+  try{
+    var photo_year = checkEmpty(parameters['photo-year']);
+    var photo_location = checkEmpty(parameters['photo-location']);
+    var photo_ocassion = checkEmpty(parameters['photo-ocassion']);
+    var family_member = checkEmpty(parameters['family-member']);
+    var strResponse = '';
+    var strFullSessionID = request.body["session"];
+    var lastSlashPosition = strFullSessionID.lastIndexOf('/');
+    var lengthSessionID = strFullSessionID.length;
+    var strSessionID = strFullSessionID.slice(lastSlashPosition,lengthSessionID);
+    var strPhotos = '';
+
+    console.log("sessionid: " + strSessionID);
+
+    if(family_member===''){
+      family_member = checkEmpty(parameters['prev-family-member']);
+      console.log("family_member is read from prev-family-member: " + family_member);
+    }
+    if(family_member===''){
+      family_member = checkEmpty(parameters['member-name']);
+      console.log("family_member is set from member-name: " + family_member);
+    }
+
+    var objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"' + request.body.session + '/contexts/my-context", "lifespanCount":10, "parameters":{}}]}');
+    objOutputContexts["outputContexts"][0].parameters["family-member"] = family_member;
+    objOutputContexts["outputContexts"][0].parameters["member-info"] = "photos";
+    //sendResponse(response,objOutputContexts);
+
+    if(photo_year==='' && photo_ocassion==='' && photo_location==='' && family_member===''){
+      console.log("photos: all necessary parameters are empty");
+      strResponse = strResponse + 'Narrow down the criteria by providing either \r\n';
+      strResponse = strResponse + 'person, year, ocassion or location';
+      objOutputContexts.fulfillmentText = strResponse;
+      sendResponse(response,objOutputContexts); // Send simple response to user
+    }else{
+      var ref = firebase.ref('mydb/photos');
+      var tmpref = firebase.ref('mydb/displayphotos/' + strSessionID);
+      ref.orderByKey().once("value", function(snapshot) {
+        if(snapshot===null){
+          console.log("no photos available in DB");
+          tmpref.set('');
+          objOutputContexts.fulfillmentText = 'No photos available as of now';
+          sendResponse(response,objOutputContexts); // Send simple response to user
+        }else{
+          snapshot.forEach(function(child){
+            //console.log("checking for photo: " + child.key);
+            var strDate = snapshot.child(child.key + "/date").val();
+            var strPersons = snapshot.child(child.key + "/persons").val();
+            var strPlaces = snapshot.child(child.key + "/places").val();
+            var strOcassion = snapshot.child(child.key + "/ocassion").val();
+            if(strDate.indexOf(photo_year)>-1 && strPersons.indexOf(family_member)>-1 && strPlaces.indexOf(photo_location)>-1 && strOcassion.indexOf(photo_ocassion)>-1){
+              strPhotos = strPhotos + child.key + ',';
+            }
+          });
+          if(strPhotos!==''){
+            console.log("photos identified: " + strPhotos);
+            tmpref.set(strPhotos);
+            objOutputContexts.fulfillmentText = 'Here are your photos. You can enlarge photos by clicking on the thumbnails.  Press escape to close the enlarged photos';
+            sendResponse(response,objOutputContexts); // Send simple response to user
+          }else{
+            tmpref.set('');
+            objOutputContexts.fulfillmentText = 'Sorry, there are no photos found with that criteria';
+            sendResponse(response,objOutputContexts); // Send simple response to user
+          }
+        }
+      });
+    }
+    //sendResponse(strResponse); // Send simple response to user
+  }catch(err){
+    console.log("error @ photos action: " + err);
+    sendResponse(response,"Sorry, i'm confused.  Can you please rephrase your query ?"); // Send simple response to user
+  }
+}
+
 function processV2Request (request, response) {
   // An action is a string used to identify what needs to be done in fulfillment
   let action = (request.body.queryResult.action) ? request.body.queryResult.action : 'default';
@@ -344,6 +462,9 @@ function processV2Request (request, response) {
   // Get the session ID to differentiate calls from different users
   let session = (request.body.session) ? request.body.session : undefined;
   // Create handlers for Dialogflow actions as well as a 'default' handler
+
+  var objOutputContexts = null;
+
   const actionHandlers = {
     // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
     'welcome': () => {
@@ -412,9 +533,11 @@ function processV2Request (request, response) {
         console.log("welcome: successfully JSON object inserted");
       // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
       if(parameters['introducer']==='' || parameters['introducer']==='[]' || parameters['introducer']===null){
-        sendResponse("Hi, i'm cute bot of somu. What's your name ?"); // Send simple response to user
+        sendResponse(response,"Hi, i'm cute bot of somu. What's your name ?"); // Send simple response to user
       }else{
-        sendResponse('Hello ' + parameters['introducer'] + ", i'm cute bot of somu. what do you want to know about Somu's family ?"); // Send simple response to user
+        objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"' + request.body.session + '/contexts/welcome", "lifespanCount":0, "parameters":{}}]}');
+        objOutputContexts.fulfillmentText = 'Hello ' + parameters['introducer'] + ", i'm cute bot of somu. what do you want to know about Somu's family ?";
+        sendResponse(response,objOutputContexts); // Send simple response to user
       }  
     },
     // The default fallback intent has been matched, try to recover (https://dialogflow.com/docs/intents#fallback_intents)
@@ -424,7 +547,7 @@ function processV2Request (request, response) {
       var member_name = parameters['family-member'];
       var member_info = parameters['member-info'];
       //request.body.session+'/contexts/something'} 
-      var objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"' + request.body.session + '/contexts/my-context", "lifespanCount":10, "parameters":{}}]}');
+      objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"' + request.body.session + '/contexts/my-context", "lifespanCount":10, "parameters":{}}]}');
 
       console.log("member_name: " + member_name);
       console.log("member_info: " + member_info);
@@ -439,21 +562,26 @@ function processV2Request (request, response) {
         member_info = parameters['my-action'];
       }
 
+      if(member_info==='photos'){
+        actionPhotos(request,response);
+        return;
+      }
+
       objOutputContexts["outputContexts"][0].parameters["family-member"] = member_name;
       objOutputContexts["outputContexts"][0].parameters["member-info"] = member_info;
 
       if(member_name===null && member_info===null){
         //objOutputContexts.fulfillmentText = 'Sorry, i did not get you question.  Can you reframe your question again ?';
         console.log(objOutputContexts.stringify);
-        sendResponse(objOutputContexts);
+        sendResponse(response,objOutputContexts);
       }else if(member_name===null){
         objOutputContexts.fulfillmentText = 'Whose ' + member_info + ' you would like to know ?';
         console.log(objOutputContexts.stringify);
-        sendResponse(objOutputContexts);
+        sendResponse(response,objOutputContexts);
       }else if(member_info===null){
         objOutputContexts.fulfillmentText = 'What would you like to know about ' + member_name + '?';
         console.log(objOutputContexts.stringify);
-        sendResponse(objOutputContexts);
+        sendResponse(response,objOutputContexts);
       }
 
       console.log("executing firebase query with member_name(" + member_name + ") and member_info(" + member_info + ")");
@@ -463,30 +591,30 @@ function processV2Request (request, response) {
         if(snapshot===null){
           console.log("snapshot is null");
           objOutputContexts.displayText = 'Wrong family member';
-          sendResponse(objOutputContexts); // Send simple response to user
+          sendResponse(response,objOutputContexts); // Send simple response to user
         }else{
           console.log(member_info + " is: " + snapshot.val());
         }
 
         if(member_info==='age'){
           objOutputContexts["fulfillmentText"] = member_name + ' is ' + snapshot.val() + ' years old !!'; // Send simple response to user
-          sendResponse(objOutputContexts); // Send simple response to user
+          sendResponse(response,objOutputContexts); // Send simple response to user
           //sendResponse(member_name + ' is ' + snapshot.val() + ' years old !!');
         }else if(member_info==='position'){
           objOutputContexts.fulfillmentText = member_name + ' is ' + snapshot.val(); // Send simple response to user
-          sendResponse(objOutputContexts); // Send simple response to user
+          sendResponse(response,objOutputContexts); // Send simple response to user
         }else if(member_info==='job'){
           objOutputContexts.fulfillmentText = member_name + ' is ' + snapshot.val(); // Send simple response to user
-          sendResponse(objOutputContexts); // Send simple response to user
+          sendResponse(response,objOutputContexts); // Send simple response to user
         }else if(member_info==='location'){
           objOutputContexts.fulfillmentText = member_name + ' is living in ' + snapshot.val(); // Send simple response to user
-          sendResponse(objOutputContexts); // Send simple response to user
+          sendResponse(response,objOutputContexts); // Send simple response to user
         }else if(member_info==='education'){
           objOutputContexts.fulfillmentText = member_name + '\'s qualification is ' + snapshot.val(); // Send simple response to user
-          sendResponse(objOutputContexts); // Send simple response to user
+          sendResponse(response,objOutputContexts); // Send simple response to user
         }else if(member_info==='dob'){
           objOutputContexts.fulfillmentText = member_name + ' born on ' + snapshot.val(); // Send simple response to user
-          sendResponse(objOutputContexts); // Send simple response to user
+          sendResponse(response,objOutputContexts); // Send simple response to user
         }
       });
     },
@@ -496,7 +624,7 @@ function processV2Request (request, response) {
       // Use the Actions on Google lib to respond to Google requests; for other requests use JSON
       console.log("my-action: " + parameters['my-action']);
       var member_name = parameters['family-member'];
-      var objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"' + request.body.session + '/contexts/my-context", "lifespanCount":10, "parameters":{}}]}');
+      objOutputContexts = JSON.parse('{"outputContexts" : [{"name":"' + request.body.session + '/contexts/my-context", "lifespanCount":10, "parameters":{}}]}');
 
       console.log("member_name: " + member_name);
       
@@ -510,7 +638,7 @@ function processV2Request (request, response) {
       if(member_name===null){
         objOutputContexts.fulfillmentText = 'Sorry, i did not get you question.  Can you reframe your question again ?';
         console.log(objOutputContexts.stringify);
-        sendResponse(objOutputContexts);
+        sendResponse(response,objOutputContexts);
       }
 
       console.log("executing firebase query with member_name(" + member_name + ")");
@@ -520,7 +648,7 @@ function processV2Request (request, response) {
         if(snapshot===null){
           console.log("snapshot is null");
           objOutputContexts.displayText = 'Wrong family member';
-          sendResponse(objOutputContexts); // Send simple response to user
+          sendResponse(response,objOutputContexts); // Send simple response to user
         }else{
           console.log(member_name + "'s information is: " + snapshot.val());
         }
@@ -530,7 +658,7 @@ function processV2Request (request, response) {
                                                              + ' and ' + snapshot.child("position").val() // Send simple response to user
                                                              + ' is living in ' + snapshot.child("location").val() // Send simple response to user
                                                              + ' and qualification is ' + snapshot.child("education").val(); // Send simple response to user
-          sendResponse(objOutputContexts); // Send simple response to user
+          sendResponse(response,objOutputContexts); // Send simple response to user
           //sendResponse(member_name + ' is ' + snapshot.val() + ' years old !!');
       });
     },
@@ -540,83 +668,18 @@ function processV2Request (request, response) {
       var ref = firebase.ref('mydb/family/' + parameters['family-member1'] + '/relationship/' + parameters['family-member2']);
       ref.orderByKey().on("value", function(snapshot) {
         if(snapshot===null){
-          sendResponse('Wrong family member'); // Send simple response to user
+          sendResponse(response,'Wrong family member'); // Send simple response to user
         }else{
           console.log("snapshot is: ");
           console.log(snapshot.val());
           console.log("snapshot value is: " + snapshot.val());
-          sendResponse(parameters['family-member2'] + ' is ' + snapshot.val() + ' to ' + parameters['family-member1']); // Send simple response to user
+          sendResponse(response,parameters['family-member2'] + ' is ' + snapshot.val() + ' to ' + parameters['family-member1']); // Send simple response to user
         }
       });
     },
     // to get the photos
     'photos': () => {
-      try{
-        var photo_year = parameters['photo-year'];
-        var photo_location = parameters['photo-location'];
-        var photo_ocassion = parameters['photo-ocassion'];
-        var family_member = parameters['family-member'];
-        var strResponse = '';
-        var strIntent = request.body.queryResult.intent["displayName"];
-        var strFullSessionID = request.body["session"];
-        var lastSlashPosition = strFullSessionID.lastIndexOf('/');
-        var lengthSessionID = strFullSessionID.length;
-        var strSessionID = strFullSessionID.slice(lastSlashPosition,lengthSessionID);
-        var strPhotos = '';
-        //var image = new Image('');
-  
-        console.log("sessionid: " + strSessionID);
-
-        if(family_member===null || family_member===''){
-          family_member = parameters['prev-family-member'];
-          console.log("family_member is set from prev-family-member");
-        }
-        if(strIntent==='photos'){
-          console.log("strIntent is photos");
-          if((photo_year===null || photo_year==='') && (photo_ocassion===null || photo_ocassion==='') && (photo_location===null || photo_location==='') && (family_member===null || family_member==='')){
-            console.log("photos: all necessary parameters are empty");
-            strResponse = strResponse + 'Narrow down the criteria by providing either \r\n';
-            strResponse = strResponse + 'person, year, ocassion or location';
-            sendResponse(strResponse); // Send simple response to user
-          }else{
-            var ref = firebase.ref('mydb/photos');
-            var tmpref = firebase.ref('mydb/displayphotos/' + strSessionID);
-            ref.orderByKey().once("value", function(snapshot) {
-              if(snapshot===null){
-                console.log("no photos available in DB");
-                tmpref.set('');
-                sendResponse('No photos available as of now'); // Send simple response to user
-              }else{
-                snapshot.forEach(function(child){
-                  //console.log("checking for photo: " + child.key);
-                  var strDate = snapshot.child(child.key + "/date").val();
-                  var strPersons = snapshot.child(child.key + "/persons").val();
-                  var strPlaces = snapshot.child(child.key + "/places").val();
-                  var strOcassion = snapshot.child(child.key + "/ocassion").val();
-                  if(strDate.indexOf(photo_year)>-1 && strPersons.indexOf(family_member)>-1 && strPlaces.indexOf(photo_location)>-1 && strOcassion.indexOf(photo_ocassion)>-1){
-                    //image.setImage('https://www.somu.co.in/images/photos/' + child.key + '.jpg');
-                    strPhotos = strPhotos + child.key + ',';
-                  }
-                });
-                if(strPhotos!==''){
-                  console.log("photos identified: " + strPhotos);
-                  tmpref.set(strPhotos);
-                  sendResponse('Here are your photos'); // Send simple response to user
-                }else{
-                  tmpref.set('');
-                  sendResponse('Sorry, there are no photos found with that criteria'); // Send simple response to user
-                }
-              }
-            });
-          }
-        }else{
-          console.log("from followup intent");
-        }
-        //sendResponse(strResponse); // Send simple response to user
-      }catch(err){
-        console.log("error @ photos action: " + err);
-        sendResponse(err); // Send simple response to user
-      }
+      actionPhotos(request,response);
     },
     // Default handler for unknown or undefined actions
     'default': () => {
@@ -625,7 +688,7 @@ function processV2Request (request, response) {
         //outputContexts: [{ 'name': `${session}/contexts/weather`, 'lifespanCount': 2, 'parameters': {'city': 'Rome'} }], // Optional, uncomment to enable
         fulfillmentText: 'This is from Dialogflow\'s Cloud Functions for Firebase editor! :-)' // displayed response
       };
-      sendResponse(responseToUser);
+      sendResponse(response,responseToUser);
     }
   };
   // If undefined or unknown action use the default handler
@@ -635,30 +698,6 @@ function processV2Request (request, response) {
   // Run the proper handler function to handle the request from Dialogflow
   actionHandlers[action]();
   // Function to send correctly formatted responses to Dialogflow which are then sent to the user
-  function sendResponse (responseToUser) {
-    // if the response is a string send it as a response to the user
-    if (typeof responseToUser === 'string') {
-      let responseJson = {fulfillmentText: responseToUser}; // displayed response
-      response.json(responseJson); // Send response to Dialogflow
-    } else {
-      // If the response to the user includes rich responses or contexts send them to Dialogflow
-      let responseJson = {fulfillmentText: responseToUser.fulfillmentText};
-      // Define the text response
-      responseJson.fulfillmentText = responseToUser.fulfillmentText;
-      // Optional: add rich messages for integrations (https://dialogflow.com/docs/rich-messages)
-      if (responseToUser.fulfillmentMessages) {
-        responseJson.fulfillmentMessages = responseToUser.fulfillmentMessages;
-      }
-      // Optional: add contexts (https://dialogflow.com/docs/contexts)
-      if (responseToUser.outputContexts) {
-        responseJson.outputContexts = responseToUser.outputContexts;
-      }
-      // Send the response to Dialogflow
-      console.log('Response to Dialogflow: ' + JSON.stringify(responseJson));
-      response.json(responseJson);
-      //response["queryResult"] = responseJson;
-    }
-  }
 }
 const richResponseV2Card = {
   'title': 'Title: this is a title',
